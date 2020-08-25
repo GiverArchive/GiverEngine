@@ -37,10 +37,10 @@ public final class Engine
   public void loadGame(GameBase game)
   {
     if(this.game != null)
-      throw  new IllegalStateException("Game already launched");
+      throw  new IllegalStateException("Game already launched.");
 
     if(game == null)
-      throw new IllegalArgumentException("Game cannot be null");
+      throw new IllegalArgumentException("Game cannot be null.");
 
     this.game = game;
     this.game.start();
