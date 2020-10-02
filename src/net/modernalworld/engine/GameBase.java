@@ -29,6 +29,10 @@ public abstract class GameBase {
 		this.fps = fps;
 	}
 
+	public static GameBase getGame() {
+		return Engine.getInstance().getGame();
+	}
+	
 	public String getName() {
 		return name;
 	}
@@ -70,6 +74,6 @@ public abstract class GameBase {
 	}
 
 	public abstract void update();
-
+	
 	public abstract void render();
 }

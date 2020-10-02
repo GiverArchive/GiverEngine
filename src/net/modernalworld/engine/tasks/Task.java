@@ -1,11 +1,15 @@
 package net.modernalworld.engine.tasks;
 
+import java.util.ArrayList;
+
 import net.modernalworld.engine.Engine;
 import net.modernalworld.engine.GameBase;
 
-public class TickTask extends Thread implements Runnable {
+public class Task extends Thread {
 	private int currentUpdates = 0;
-
+	
+	private ArrayList<Runnable> tasks = new ArrayList<>();
+	
 	@Override
 	public void run() {
 		GameBase game = Engine.getInstance().getGame();
@@ -27,7 +31,9 @@ public class TickTask extends Thread implements Runnable {
 
 			if (delta >= 1) {
 				try {
-					game.update();
+					for (Runnable runnable : tasks) {
+						runnable.run();
+					}
 				} catch (Throwable e) {
 					System.out.println("Exception in Game.update()");
 				}
@@ -46,5 +52,9 @@ public class TickTask extends Thread implements Runnable {
 
 	public int getCurrentUpdates() {
 		return this.currentUpdates;
+	}
+	
+	public void add(Runnable runnable) {
+		tasks.add(runnable);
 	}
 }

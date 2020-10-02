@@ -1,11 +1,12 @@
 package me.giverplay.engine.teste;
 
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.image.BufferStrategy;
+
 import net.modernalworld.engine.GameBase;
 import net.modernalworld.engine.gui.Window;
 import net.modernalworld.engine.gui.WindowBuilder;
-
-import java.awt.Graphics;
-import java.awt.image.BufferStrategy;
 
 public class Game extends GameBase {
 	private Window window;
@@ -19,8 +20,13 @@ public class Game extends GameBase {
 	}
 
 	private void setupFrame() {
-		this.window = new WindowBuilder("Teste").setResizeable(false).setWidth(640).setHeight(460)
-				.setTitle("Testelandiaaaa").build();
+		WindowBuilder builder = new WindowBuilder("Teste");
+		builder.setResizeable(false);
+		builder.setWidth(640);
+		builder.setHeight(460);
+		builder.setTitle("Testelandiaaaa");
+
+		this.window = builder.build();
 
 		this.window.createBufferStrategy(3);
 		this.bufferStrategy = this.window.getBufferStrategy();
@@ -31,11 +37,25 @@ public class Game extends GameBase {
 
 	@Override
 	public void update() {
-
+		
 	}
 
 	@Override
 	public void render() {
-
+		Graphics g = bufferStrategy.getDrawGraphics();
+		
+		g.setColor(Color.black);
+		g.fillRect(0, 0, getFrameWidth(), getFrameHeight());
+		
+		g.dispose();
+		bufferStrategy.show();
+	}
+	
+	public int getFrameWidth() {
+		return window.getFrame().getWidth();
+	}
+	
+	public int getFrameHeight() {
+		return window.getFrame().getHeight();
 	}
 }

@@ -1,14 +1,13 @@
 package net.modernalworld.engine;
 
-import net.modernalworld.engine.tasks.RenderTask;
-import net.modernalworld.engine.tasks.TickTask;
+import net.modernalworld.engine.tasks.Task;
+import static net.modernalworld.engine.GameBase.getGame;
 
 public final class Engine {
 	private static Engine instance;
 
 	private GameBase game;
-	private TickTask tickTask;
-	private RenderTask renderTask;
+	private Task task;
 
 	private Engine() {
 	}
@@ -39,23 +38,17 @@ public final class Engine {
 		this.game = game;
 		this.game.start();
 
-		this.tickTask = new TickTask();
-		this.tickTask.start();
-
-		this.renderTask = new RenderTask();
-		this.renderTask.start();
+		this.task = new Task();
+		
+		this.task.add(getGame()::update);
+		this.task.add(getGame()::render);
+		
+		this.task.start();
 	}
 
 	public void unloadGame() {
 		if (game != null) {
 			game.stop();
-
-			try {
-				tickTask.join();
-				renderTask.join();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
 		}
 	}
 }
