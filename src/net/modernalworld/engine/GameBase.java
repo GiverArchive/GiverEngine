@@ -7,7 +7,6 @@ public abstract class GameBase
   private String name;
   private Window window;
   private boolean hideConsole;
-  private boolean isRunning;
   private int updates;
   private int fps;
 
@@ -69,20 +68,9 @@ public abstract class GameBase
     return window;
   }
 
-  public boolean isRunning()
-  {
-    return isRunning;
-  }
-
-  public synchronized void start()
-  {
-    isRunning = true;
-  }
-
-  public synchronized void stop()
-  {
-    isRunning = false;
-  }
+  public abstract void onEnable();
+  
+  public abstract void onDisable();
 
   public abstract void update();
 
