@@ -7,44 +7,35 @@ import net.modernalworld.engine.gui.WindowBuilder;
 import java.awt.Graphics;
 import java.awt.image.BufferStrategy;
 
-public class Game extends GameBase
-{
-  private Window window;
-  private Graphics graphics;
-  private BufferStrategy bufferStrategy;
+public class Game extends GameBase {
+	private Window window;
+	private Graphics graphics;
+	private BufferStrategy bufferStrategy;
 
-  public Game()
-  {
-    super("Testelandia", true, 60, 60);
+	public Game() {
+		super("Testelandia", true, 60, 60);
 
-    setupFrame();
-  }
+		setupFrame();
+	}
 
-  private void setupFrame()
-  {
-    this.window = new WindowBuilder("Teste")
-            .setResizeable(false)
-            .setWidth(640)
-            .setHeight(460)
-            .setTitle("Testelandiaaaa")
-            .build();
+	private void setupFrame() {
+		this.window = new WindowBuilder("Teste").setResizeable(false).setWidth(640).setHeight(460)
+				.setTitle("Testelandiaaaa").build();
 
-    this.window.createBufferStrategy(3);
-    this.bufferStrategy = this.window.getBufferStrategy();
-    this.graphics = this.bufferStrategy.getDrawGraphics();
+		this.window.createBufferStrategy(3);
+		this.bufferStrategy = this.window.getBufferStrategy();
+		this.graphics = this.bufferStrategy.getDrawGraphics();
 
-    this.window.showWindow();
-  }
+		this.window.showWindow();
+	}
 
-  @Override
-  public void update()
-  {
+	@Override
+	public void update() {
 
-  }
+	}
 
-  @Override
-  public void render()
-  {
+	@Override
+	public void render() {
 
-  }
+	}
 }
