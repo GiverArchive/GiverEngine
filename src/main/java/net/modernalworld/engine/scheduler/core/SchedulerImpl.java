@@ -1,4 +1,4 @@
-package net.modernalworld.engine.scheduler;
+package net.modernalworld.engine.scheduler.core;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -9,35 +9,41 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import net.modernalworld.engine.GameBase;
+import net.modernalworld.engine.game.GameBase;
+import net.modernalworld.engine.scheduler.Scheduler;
+import net.modernalworld.engine.scheduler.Task;
+import net.modernalworld.engine.scheduler.TaskRunnable;
+import net.modernalworld.engine.scheduler.Worker;
 
-public class CraftScheduler
+// CraftScheduler - https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/browse/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
+public class SchedulerImpl implements Scheduler
 {
   private final AtomicInteger ids = new AtomicInteger(1);
   
-  private volatile CraftTask head = new CraftTask();
+  private volatile TaskImpl head = new TaskImpl();
   
-  private final AtomicReference<CraftTask> tail = new AtomicReference<>(head);
+  private final AtomicReference<TaskImpl> tail = new AtomicReference<>(head);
   
-  private final PriorityQueue<CraftTask> pending = new PriorityQueue<CraftTask>(10,
+  private final PriorityQueue<TaskImpl> pending = new PriorityQueue<>(10,
       (o1, o2) -> (int) (o1.getNextRun() - o2.getNextRun()));
   
-  private final List<CraftTask> temp = new ArrayList<CraftTask>();
+  private final List<TaskImpl> temp = new ArrayList<>();
   
-  private final ConcurrentHashMap<Integer, CraftTask> runners = new ConcurrentHashMap<Integer, CraftTask>();
+  private final ConcurrentHashMap<Integer, TaskImpl> runners = new ConcurrentHashMap<>();
+  private final Executor executor = Executors.newCachedThreadPool(doBuild());
   private volatile int currentTick = -1;
-  private final Executor executor = Executors.newCachedThreadPool(doBuild()); // Spigot
-  private CraftAsyncDebugger debugHead = new CraftAsyncDebugger(-1, null, null)
+  
+  private AsyncDebugger debugHead = new AsyncDebugger(-1, null, null)
   {
     @Override
     StringBuilder debugTo(StringBuilder string) {return string;}
   };
-  private CraftAsyncDebugger debugTail = debugHead;
+  
+  private AsyncDebugger debugTail = debugHead;
   private static final int RECENT_TICKS;
   
   static
@@ -45,97 +51,117 @@ public class CraftScheduler
     RECENT_TICKS = 30;
   }
   
+  @Override
   public int scheduleSyncDelayedTask(final GameBase game, final Runnable task)
   {
-    return this.scheduleSyncDelayedTask(game, task, 0l);
+    return this.scheduleSyncDelayedTask(game, task, 0L);
   }
   
-  public CraftTask runTask(GameBase game, Runnable runnable)
+  @Override
+  public Task runTask(GameBase game, Runnable runnable)
   {
-    return runTaskLater(game, runnable, 0l);
+    return runTaskLater(game, runnable, 0L);
   }
   
   @Deprecated
+  @Override
   public int scheduleAsyncDelayedTask(final GameBase game, final Runnable task)
   {
-    return this.scheduleAsyncDelayedTask(game, task, 0l);
+    return this.scheduleAsyncDelayedTask(game, task, 0L);
   }
   
-  public CraftTask runTaskAsynchronously(GameBase game, Runnable runnable)
+  @Override
+  public Task runTaskAsynchronously(GameBase game, Runnable runnable)
   {
-    return runTaskLaterAsynchronously(game, runnable, 0l);
+    return runTaskLaterAsynchronously(game, runnable, 0L);
   }
   
+  @Override
   public int scheduleSyncDelayedTask(final GameBase game, final Runnable task, final long delay)
   {
-    return this.scheduleSyncRepeatingTask(game, task, delay, -1l);
+    return this.scheduleSyncRepeatingTask(game, task, delay, -1L);
   }
   
-  public CraftTask runTaskLater(GameBase game, Runnable runnable, long delay)
+  @Override
+  public Task runTaskLater(GameBase game, Runnable runnable, long delay)
   {
-    return runTaskTimer(game, runnable, delay, -1l);
+    return runTaskTimer(game, runnable, delay, -1L);
   }
   
   @Deprecated
+  @Override
   public int scheduleAsyncDelayedTask(final GameBase game, final Runnable task, final long delay)
   {
-    return this.scheduleAsyncRepeatingTask(game, task, delay, -1l);
+    return this.scheduleAsyncRepeatingTask(game, task, delay, -1L);
   }
   
-  public CraftTask runTaskLaterAsynchronously(GameBase game, Runnable runnable, long delay)
+  @Override
+  public Task runTaskLaterAsynchronously(GameBase game, Runnable runnable, long delay)
   {
-    return runTaskTimerAsynchronously(game, runnable, delay, -1l);
+    return runTaskTimerAsynchronously(game, runnable, delay, -1L);
   }
   
+  @Override
   public int scheduleSyncRepeatingTask(final GameBase game, final Runnable runnable, long delay, long period)
   {
     return runTaskTimer(game, runnable, delay, period).getTaskId();
   }
   
-  public CraftTask runTaskTimer(GameBase game, Runnable runnable, long delay, long period)
+  @Override
+  public Task runTaskTimer(GameBase game, Runnable runnable, long delay, long period)
   {
     validate(game, runnable);
-    if(delay < 0l)
+    if(delay < 0L)
     {
       delay = 0;
     }
-    if(period == 0l)
+    
+    if(period == 0L)
     {
-      period = 1l;
-    } else if(period < -1l)
-    {
-      period = -1l;
+      period = 1L;
     }
-    return handle(new CraftTask(game, runnable, nextId(), period), delay);
+    else if(period < -1L)
+    {
+      period = -1L;
+    }
+    
+    return handle(new TaskImpl(game, runnable, nextId(), period), delay);
   }
   
   @Deprecated
+  @Override
   public int scheduleAsyncRepeatingTask(final GameBase game, final Runnable runnable, long delay, long period)
   {
     return runTaskTimerAsynchronously(game, runnable, delay, period).getTaskId();
   }
   
-  public CraftTask runTaskTimerAsynchronously(GameBase game, Runnable runnable, long delay, long period)
+  @Override
+  public Task runTaskTimerAsynchronously(GameBase game, Runnable runnable, long delay, long period)
   {
     validate(game, runnable);
-    if(delay < 0l)
+    
+    if(delay < 0L)
     {
       delay = 0;
     }
-    if(period == 0l)
+    
+    if(period == 0L)
     {
-      period = 1l;
-    } else if(period < -1l)
-    {
-      period = -1l;
+      period = 1L;
     }
-    return handle(new CraftAsyncTask(runners, game, runnable, nextId(), period), delay);
+    else if(period < -1L)
+    {
+      period = -1L;
+    }
+    
+    return handle(new AsyncTaskImpl(runners, game, runnable, nextId(), period), delay);
   }
   
-  public <T> Future<T> callSyncMethod(final GameBase game, final Callable<T> task)
+  @Override
+  public <T> java.util.concurrent.Future<T> callSyncMethod(final GameBase game, final Callable<T> task)
   {
     validate(game, task);
-    final CraftFuture<T> future = new CraftFuture<T>(task, game, nextId());
+    final Future<T> future = new Future<>(task, game, nextId());
     handle(future, 0L);
     return future;
   }
@@ -146,28 +172,33 @@ public class CraftScheduler
     {
       return;
     }
-    CraftTask task = runners.get(taskId);
+    
+    TaskImpl task = runners.get(taskId);
+    
     if(task != null)
     {
       task.cancel0();
     }
-    task = new CraftTask(
+    
+    task = new TaskImpl(
         new Runnable()
         {
+          @Override
           public void run()
           {
-            if(!check(CraftScheduler.this.temp))
+            if(!check(SchedulerImpl.this.temp))
             {
-              check(CraftScheduler.this.pending);
+              check(SchedulerImpl.this.pending);
             }
           }
           
-          private boolean check(final Iterable<CraftTask> collection)
+          private boolean check(final Iterable<TaskImpl> collection)
           {
-            final Iterator<CraftTask> tasks = collection.iterator();
+            final Iterator<TaskImpl> tasks = collection.iterator();
+            
             while(tasks.hasNext())
             {
-              final CraftTask task = tasks.next();
+              final TaskImpl task = tasks.next();
               if(task.getTaskId() == taskId)
               {
                 task.cancel0();
@@ -182,8 +213,10 @@ public class CraftScheduler
             return false;
           }
         });
+    
     handle(task, 0L);
-    for(CraftTask taskPending = head.getNext(); taskPending != null; taskPending = taskPending.getNext())
+    
+    for(TaskImpl taskPending = head.getNext(); taskPending != null; taskPending = taskPending.getNext())
     {
       if(taskPending == task)
       {
@@ -196,29 +229,30 @@ public class CraftScheduler
     }
   }
   
+  @Override
   public void cancelTasks(final GameBase game)
   {
-    
     if(game == null)
     {
       throw new IllegalArgumentException("Plugin cannot be null");
     }
     
-    final CraftTask task = new CraftTask(
+    final TaskImpl task = new TaskImpl(
         new Runnable()
         {
+          @Override
           public void run()
           {
-            check(CraftScheduler.this.pending);
-            check(CraftScheduler.this.temp);
+            check(SchedulerImpl.this.pending);
+            check(SchedulerImpl.this.temp);
           }
           
-          void check(final Iterable<CraftTask> collection)
+          void check(final Iterable<TaskImpl> collection)
           {
-            final Iterator<CraftTask> tasks = collection.iterator();
+            final Iterator<TaskImpl> tasks = collection.iterator();
             while(tasks.hasNext())
             {
-              final CraftTask task = tasks.next();
+              final TaskImpl task = tasks.next();
               if(task.getOwner().equals(game))
               {
                 task.cancel0();
@@ -231,8 +265,10 @@ public class CraftScheduler
             }
           }
         });
-    handle(task, 0l);
-    for(CraftTask taskPending = head.getNext(); taskPending != null; taskPending = taskPending.getNext())
+    
+    handle(task, 0L);
+    
+    for(TaskImpl taskPending = head.getNext(); taskPending != null; taskPending = taskPending.getNext())
     {
       if(taskPending == task)
       {
@@ -243,7 +279,8 @@ public class CraftScheduler
         taskPending.cancel0();
       }
     }
-    for(CraftTask runner : runners.values())
+    
+    for(TaskImpl runner : runners.values())
     {
       if(runner.getOwner().equals(game))
       {
@@ -252,136 +289,145 @@ public class CraftScheduler
     }
   }
   
+  @Override
   public void cancelAllTasks()
   {
-    final CraftTask task = new CraftTask(
-        new Runnable()
-        {
-          public void run()
+    final TaskImpl task = new TaskImpl(
+        () -> {
+          Iterator<TaskImpl> it = SchedulerImpl.this.runners.values().iterator();
+          while(it.hasNext())
           {
-            Iterator<CraftTask> it = CraftScheduler.this.runners.values().iterator();
-            while(it.hasNext())
+            TaskImpl task1 = it.next();
+            task1.cancel0();
+            if(task1.isSync())
             {
-              CraftTask task = it.next();
-              task.cancel0();
-              if(task.isSync())
-              {
-                it.remove();
-              }
+              it.remove();
             }
-            CraftScheduler.this.pending.clear();
-            CraftScheduler.this.temp.clear();
           }
+          SchedulerImpl.this.pending.clear();
+          SchedulerImpl.this.temp.clear();
         });
-    handle(task, 0l);
-    for(CraftTask taskPending = head.getNext(); taskPending != null; taskPending = taskPending.getNext())
+    
+    handle(task, 0L);
+    
+    for(TaskImpl taskPending = head.getNext(); taskPending != null; taskPending = taskPending.getNext())
     {
       if(taskPending == task)
       {
         break;
       }
+      
       taskPending.cancel0();
     }
-    for(CraftTask runner : runners.values())
+    
+    for(TaskImpl runner : runners.values())
     {
       runner.cancel0();
     }
   }
   
+  @Override
   public boolean isCurrentlyRunning(final int taskId)
   {
-    final CraftTask task = runners.get(taskId);
+    final TaskImpl task = runners.get(taskId);
+    
     if(task == null || task.isSync())
     {
       return false;
     }
-    final CraftAsyncTask asyncTask = (CraftAsyncTask) task;
+    final AsyncTaskImpl asyncTask = (AsyncTaskImpl) task;
     synchronized(asyncTask.getWorkers())
     {
       return asyncTask.getWorkers().isEmpty();
     }
   }
   
+  @Override
   public boolean isQueued(final int taskId)
   {
     if(taskId <= 0)
     {
       return false;
     }
-    for(CraftTask task = head.getNext(); task != null; task = task.getNext())
+    for(TaskImpl task = head.getNext(); task != null; task = task.getNext())
     {
       if(task.getTaskId() == taskId)
       {
-        return task.getPeriod() >= -1l; // The task will run
+        return task.getPeriod() >= -1L; // The task will run
       }
     }
-    CraftTask task = runners.get(taskId);
-    return task != null && task.getPeriod() >= -1l;
+    
+    TaskImpl task = runners.get(taskId);
+    return task != null && task.getPeriod() >= -1L;
   }
   
-  public List<BukkitWorker> getActiveWorkers()
+  @Override
+  public List<Worker> getActiveWorkers()
   {
-    final ArrayList<BukkitWorker> workers = new ArrayList<BukkitWorker>();
-    for(final CraftTask taskObj : runners.values())
+    final ArrayList<Worker> workers = new ArrayList<>();
+    
+    for(final TaskImpl taskObj : runners.values())
     {
-      // Iterator will be a best-effort (may fail to grab very new values) if called from an async thread
+      
       if(taskObj.isSync())
       {
         continue;
       }
-      final CraftAsyncTask task = (CraftAsyncTask) taskObj;
+      
+      final AsyncTaskImpl task = (AsyncTaskImpl) taskObj;
+      
       synchronized(task.getWorkers())
       {
-        // This will never have an issue with stale threads; it's state-safe
         workers.addAll(task.getWorkers());
       }
     }
+    
     return workers;
   }
   
-  public List<CraftTask> getPendingTasks()
+  @Override
+  public List<Task> getPendingTasks()
   {
-    final ArrayList<CraftTask> truePending = new ArrayList<CraftTask>();
-    for(CraftTask task = head.getNext(); task != null; task = task.getNext())
+    final ArrayList<TaskImpl> truePending = new ArrayList<>();
+    for(TaskImpl task = head.getNext(); task != null; task = task.getNext())
     {
       if(task.getTaskId() != -1)
       {
-        // -1 is special code
         truePending.add(task);
       }
     }
     
-    final ArrayList<CraftTask> pending = new ArrayList<CraftTask>();
-    for(CraftTask task : runners.values())
+    final ArrayList<Task> pending = new ArrayList<>();
+    for(TaskImpl task : runners.values())
     {
-      if(task.getPeriod() >= -1l)
+      if(task.getPeriod() >= -1L)
       {
         pending.add(task);
       }
     }
     
-    for(final CraftTask task : truePending)
+    for(final TaskImpl task : truePending)
     {
-      if(task.getPeriod() >= -1l && !pending.contains(task))
+      if(task.getPeriod() >= -1L && !pending.contains(task))
       {
         pending.add(task);
       }
     }
+    
     return pending;
   }
   
-  /**
-   * This method is designed to never block or wait for locks; an immediate execution of all current tasks.
-   */
   public void mainThreadHeartbeat(final int currentTick)
   {
     this.currentTick = currentTick;
-    final List<CraftTask> temp = this.temp;
+    final List<TaskImpl> temp = this.temp;
     parsePending();
+    
     while(isReady(currentTick))
     {
-      final CraftTask task = pending.remove();
-      if(task.getPeriod() < -1l)
+      final TaskImpl task = pending.remove();
+      
+      if(task.getPeriod() < -1L)
       {
         if(task.isSync())
         {
@@ -390,6 +436,7 @@ public class CraftScheduler
         parsePending();
         continue;
       }
+      
       if(task.isSync())
       {
         try
@@ -401,40 +448,45 @@ public class CraftScheduler
           // TODO
         }
         parsePending();
-      } else
-      {
-        debugTail = debugTail.setNext(new CraftAsyncDebugger(currentTick + RECENT_TICKS, task.getOwner(), task.getTaskClass()));
-        executor.execute(task);
-        // We don't need to parse pending
-        // (async tasks must live with race-conditions if they attempt to cancel between these few lines of code)
       }
+      else
+      {
+        debugTail = debugTail.setNext(new AsyncDebugger(currentTick + RECENT_TICKS, task.getOwner(), task.getTaskClass()));
+        executor.execute(task);
+      }
+      
       final long period = task.getPeriod(); // State consistency
+      
       if(period > 0)
       {
         task.setNextRun(currentTick + period);
         temp.add(task);
-      } else if(task.isSync())
+      }
+      else if(task.isSync())
       {
         runners.remove(task.getTaskId());
       }
     }
+    
     pending.addAll(temp);
     temp.clear();
     debugHead = debugHead.getNextHead(currentTick);
   }
   
-  private void addTask(final CraftTask task)
+  private void addTask(final TaskImpl task)
   {
-    final AtomicReference<CraftTask> tail = this.tail;
-    CraftTask tailTask = tail.get();
+    final AtomicReference<TaskImpl> tail = this.tail;
+    TaskImpl tailTask = tail.get();
+    
     while(!tail.compareAndSet(tailTask, task))
     {
       tailTask = tail.get();
     }
+    
     tailTask.setNext(task);
   }
   
-  private CraftTask handle(final CraftTask task, final long delay)
+  private TaskImpl handle(final TaskImpl task, final long delay)
   {
     task.setNextRun(currentTick + delay);
     addTask(task);
@@ -456,27 +508,29 @@ public class CraftScheduler
   
   private void parsePending()
   {
-    CraftTask head = this.head;
-    CraftTask task = head.getNext();
-    CraftTask lastTask = head;
+    TaskImpl head = this.head;
+    TaskImpl task = head.getNext();
+    TaskImpl lastTask = head;
+    
     for(; task != null; task = (lastTask = task).getNext())
     {
       if(task.getTaskId() == -1)
       {
         task.run();
-      } else if(task.getPeriod() >= -1l)
+      }
+      else if(task.getPeriod() >= -1L)
       {
         pending.add(task);
         runners.put(task.getTaskId(), task);
       }
     }
-    // We split this because of the way things are ordered for all of the async calls in CraftScheduler
-    // (it prevents race-conditions)
+    
     for(task = head; task != lastTask; task = head)
     {
       head = task.getNext();
       task.setNext(null);
     }
+    
     this.head = lastTask;
   }
   
@@ -495,80 +549,79 @@ public class CraftScheduler
   }
   
   @Deprecated
-  public int scheduleSyncDelayedTask(GameBase game, BukkitRunnable task, long delay)
+  @Override
+  public int scheduleSyncDelayedTask(GameBase game, TaskRunnable task, long delay)
   {
     return scheduleSyncDelayedTask(game, (Runnable) task, delay);
   }
   
   @Deprecated
-  public int scheduleSyncDelayedTask(GameBase game, BukkitRunnable task)
+  @Override
+  public int scheduleSyncDelayedTask(GameBase game, TaskRunnable task)
   {
     return scheduleSyncDelayedTask(game, (Runnable) task);
   }
   
   @Deprecated
-  public int scheduleSyncRepeatingTask(GameBase game, BukkitRunnable task, long delay, long period)
+  @Override
+  public int scheduleSyncRepeatingTask(GameBase game, TaskRunnable task, long delay, long period)
   {
     return scheduleSyncRepeatingTask(game, (Runnable) task, delay, period);
   }
   
   @Deprecated
-  public CraftTask runTask(GameBase game, BukkitRunnable task) throws IllegalArgumentException
+  @Override
+  public Task runTask(GameBase game, TaskRunnable task) throws IllegalArgumentException
   {
     return runTask(game, (Runnable) task);
   }
   
   @Deprecated
-  public CraftTask runTaskAsynchronously(GameBase game, BukkitRunnable task) throws IllegalArgumentException
+  @Override
+  public Task runTaskAsynchronously(GameBase game, TaskRunnable task) throws IllegalArgumentException
   {
     return runTaskAsynchronously(game, (Runnable) task);
   }
   
   @Deprecated
-  public CraftTask runTaskLater(GameBase game, BukkitRunnable task, long delay) throws IllegalArgumentException
+  @Override
+  public Task runTaskLater(GameBase game, TaskRunnable task, long delay) throws IllegalArgumentException
   {
     return runTaskLater(game, (Runnable) task, delay);
   }
   
   @Deprecated
-  public CraftTask runTaskLaterAsynchronously(GameBase game, BukkitRunnable task, long delay) throws IllegalArgumentException
+  @Override
+  public Task runTaskLaterAsynchronously(GameBase game, TaskRunnable task, long delay) throws IllegalArgumentException
   {
     return runTaskLaterAsynchronously(game, (Runnable) task, delay);
   }
   
   @Deprecated
-  public CraftTask runTaskTimer(GameBase game, BukkitRunnable task, long delay, long period) throws IllegalArgumentException
+  @Override
+  public Task runTaskTimer(GameBase game, TaskRunnable task, long delay, long period) throws IllegalArgumentException
   {
     return runTaskTimer(game, (Runnable) task, delay, period);
   }
   
   @Deprecated
-  public CraftTask runTaskTimerAsynchronously(GameBase game, BukkitRunnable task, long delay, long period) throws IllegalArgumentException
+  @Override
+  public Task runTaskTimerAsynchronously(GameBase game, TaskRunnable task, long delay, long period) throws IllegalArgumentException
   {
     return runTaskTimerAsynchronously(game, (Runnable) task, delay, period);
   }
   
-  // Google Guava
+  // Google Guava - https://github.com/google/guava
   private static ThreadFactory doBuild()
   {
     final ThreadFactory backingThreadFactory = Executors.defaultThreadFactory();
     final AtomicLong count = new AtomicLong(0);
     
-    return new ThreadFactory()
-    {
-      @Override
-      public Thread newThread(Runnable runnable)
-      {
-        Thread thread = backingThreadFactory.newThread(runnable);
-        thread.setName(format("Craft Scheduler Thread - %1$d", count.getAndIncrement()));
-  
-        return thread;
-      }
+    return runnable -> {
+      Thread thread = backingThreadFactory.newThread(runnable);
+      thread.setName(String.format(Locale.ROOT, "Craft Scheduler Thread - %1$d", count.getAndIncrement()));
+      
+      return thread;
     };
-  }
-  
-  private static String format(String format, Object... args)
-  {
-    return String.format(Locale.ROOT, format, args);
   }
 }

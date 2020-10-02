@@ -1,16 +1,19 @@
-package net.modernalworld.engine.scheduler;
+package net.modernalworld.engine.scheduler.core;
 
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
-import net.modernalworld.engine.GameBase;
+import net.modernalworld.engine.game.GameBase;
+import net.modernalworld.engine.scheduler.Worker;
 
-class CraftAsyncTask extends CraftTask {
+// CraftAsyncTask - https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/browse/src/main/java/org/bukkit/craftbukkit/scheduler/CraftAsyncTask.java
+class AsyncTaskImpl extends TaskImpl
+{
 
-    private final LinkedList<BukkitWorker> workers = new LinkedList<BukkitWorker>();
-    private final Map<Integer, CraftTask> runners;
+    private final LinkedList<Worker> workers = new LinkedList<Worker>();
+    private final Map<Integer, TaskImpl> runners;
 
-    CraftAsyncTask(final Map<Integer, CraftTask> runners, final GameBase game, final Runnable task, final int id, final long delay) {
+    AsyncTaskImpl(final Map<Integer, TaskImpl> runners, final GameBase game, final Runnable task, final int id, final long delay) {
         super(game, task, id, delay);
         this.runners = runners;
     }
@@ -30,17 +33,17 @@ class CraftAsyncTask extends CraftTask {
                 return;
             }
             workers.add(
-                new BukkitWorker() {
+                new Worker() {
                     public Thread getThread() {
                         return thread;
                     }
 
                     public int getTaskId() {
-                        return CraftAsyncTask.this.getTaskId();
+                        return AsyncTaskImpl.this.getTaskId();
                     }
 
                     public GameBase getOwner() {
-                        return CraftAsyncTask.this.getOwner();
+                        return AsyncTaskImpl.this.getOwner();
                     }
                 });
         }
@@ -54,7 +57,7 @@ class CraftAsyncTask extends CraftTask {
             // Cleanup is important for any async task, otherwise ghost tasks are everywhere
             synchronized(workers) {
                 try {
-                    final Iterator<BukkitWorker> workers = this.workers.iterator();
+                    final Iterator<Worker> workers = this.workers.iterator();
                     boolean removed = false;
                     while (workers.hasNext()) {
                         if (workers.next().getThread() == thread) {
@@ -83,11 +86,11 @@ class CraftAsyncTask extends CraftTask {
         }
     }
 
-    LinkedList<BukkitWorker> getWorkers() {
+    LinkedList<Worker> getWorkers() {
         return workers;
     }
 
-    boolean cancel0() {
+    void cancel0() {
         synchronized (workers) {
             // Synchronizing here prevents race condition for a completing task
             setPeriod(-2l);
@@ -95,6 +98,5 @@ class CraftAsyncTask extends CraftTask {
                 runners.remove(getTaskId());
             }
         }
-        return true;
     }
 }

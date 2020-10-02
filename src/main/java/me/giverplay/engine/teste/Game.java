@@ -8,21 +8,22 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
-import net.modernalworld.engine.GameBase;
+import net.modernalworld.engine.Engine;
+import net.modernalworld.engine.game.GameBase;
 import net.modernalworld.engine.gui.Window;
 import net.modernalworld.engine.gui.WindowBuilder;
 import net.modernalworld.engine.gui.render.Animation;
 import net.modernalworld.engine.gui.render.GiverGraphics;
+import net.modernalworld.engine.scheduler.TaskRunnable;
 
 public class Game extends GameBase {
+  
   private Window window;
   private BufferStrategy bufferStrategy;
   private GiverGraphics gp;
   
   public Game() {
     super("Testelandia", true, 60, 60);
-    
-    setupFrame();
   }
   
   private void setupFrame() {
@@ -40,6 +41,37 @@ public class Game extends GameBase {
     this.gp = new GiverGraphics(this.bufferStrategy.getDrawGraphics());
     
     this.window.showWindow();
+  }
+  
+  @Override
+  public void onEnable()
+  {
+    setupFrame();
+    
+    new TaskRunnable()
+    {
+      @Override
+      public void run()
+      {
+        System.out.println("Dentro do scheduler repetindo a cada 1 segundos");
+      }
+    }.runTaskTimer(this, 10, 60);
+    
+    new TaskRunnable()
+    {
+      @Override
+      public void run()
+      {
+        System.out.println("Dentro do scheduler repetindo a cada 5 segundos");
+      }
+    }.runTaskTimer(this, 10, 60 * 5);
+  
+  }
+  
+  @Override
+  public void onDisable()
+  {
+  
   }
   
   @Override

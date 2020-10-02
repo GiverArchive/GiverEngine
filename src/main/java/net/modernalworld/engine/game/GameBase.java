@@ -1,12 +1,12 @@
-package net.modernalworld.engine;
+package net.modernalworld.engine.game;
 
+import net.modernalworld.engine.Engine;
 import net.modernalworld.engine.gui.Window;
 
 public abstract class GameBase {
-  private String name;
+  private final String name;
   private Window window;
   private boolean hideConsole;
-  private boolean isRunning;
   private int updates;
   private int fps;
   
@@ -29,10 +29,6 @@ public abstract class GameBase {
     this.fps = fps;
   }
   
-  public static GameBase getGame() {
-    return Engine.getInstance().getGame();
-  }
-  
   public String getName() {
     return name;
   }
@@ -45,11 +41,11 @@ public abstract class GameBase {
     return this.hideConsole;
   }
   
-  public int getUpdates() {
+  public int getMaxUpdates() {
     return this.updates;
   }
   
-  public int getFps() {
+  public int getMaxFPS() {
     return fps;
   }
   
@@ -61,17 +57,9 @@ public abstract class GameBase {
     return window;
   }
   
-  public boolean isRunning() {
-    return isRunning;
-  }
+  public abstract void onEnable();
   
-  public synchronized void start() {
-    isRunning = true;
-  }
-  
-  public synchronized void stop() {
-    isRunning = false;
-  }
+  public abstract void onDisable();
   
   public abstract void update();
   

@@ -1,53 +1,53 @@
 package net.modernalworld.engine;
 
-import net.modernalworld.engine.tasks.Task;
+import net.modernalworld.engine.game.GameBase;
+import net.modernalworld.engine.game.GameLooping;
+import net.modernalworld.engine.scheduler.Scheduler;
+import net.modernalworld.engine.scheduler.core.SchedulerImpl;
 
-public final class Engine {
-	private static Engine instance;
-	
-	private GameBase game;
-	private Task task;
-	
-	private Engine() {
-	}
-	
-	public static Engine getInstance() {
-		if (instance == null) {
-			synchronized (Engine.class) {
-				if (instance == null) {
-					instance = new Engine();
-				}
-			}
-		}
-		
-		return instance;
-	}
-	
-	public GameBase getGame() {
-		return game;
-	}
-	
-	public void loadGame(GameBase game) {
-		if (this.game != null)
-			throw new IllegalStateException("Game already launched.");
-		
-		if (game == null)
-			throw new IllegalArgumentException("Game cannot be null.");
-		
-		this.game = game;
-		this.game.start();
-		
-		this.task = new Task();
-		
-		this.task.add(getGame()::update);
-		this.task.add(getGame()::render);
-		
-		this.task.start();
-	}
-	
-	public void unloadGame() {
-		if (game != null) {
-			game.stop();
-		}
-	}
+public final class Engine
+{
+  private static final Engine INSTANCE = new Engine();
+  
+  private static SchedulerImpl scheduler;
+  private static GameLooping looping;
+  private static GameBase game;
+  
+  private Engine()
+  {
+    scheduler = new SchedulerImpl();
+  }
+  
+  public static Scheduler getScheduler()
+  {
+    return scheduler;
+  }
+  
+  public static GameBase getGame()
+  {
+    return game;
+  }
+  
+  public static void loadGame(GameBase game)
+  {
+    if(Engine.game != null)
+      throw new IllegalStateException("Game already launched.");
+    
+    if(game == null)
+      throw new IllegalArgumentException("Game cannot be null.");
+    
+    Engine.game = game;
+    Engine.game.onEnable();
+    
+    Engine.looping = new GameLooping(Engine.game, Engine.scheduler);
+  }
+  
+  public static void shutdown()
+  {
+    Engine.scheduler.cancelAllTasks();
+    Engine.looping.handleStop();
+    Engine.game.onDisable();
+    System.gc();
+    System.exit(0);
+  }
 }
