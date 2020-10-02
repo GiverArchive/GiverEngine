@@ -35,7 +35,13 @@ public class Task extends Thread {
 						runnable.run();
 					}
 				} catch (Throwable e) {
-					System.out.println("Exception in Game.update()");
+					try {
+						System.out.println("Exception in Game.update()");
+						e.printStackTrace();
+						join();
+					} catch (InterruptedException e1) {
+						e1.printStackTrace();
+					}
 				}
 
 				delta--;

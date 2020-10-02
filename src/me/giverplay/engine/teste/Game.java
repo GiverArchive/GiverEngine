@@ -3,15 +3,21 @@ package me.giverplay.engine.teste;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.image.BufferStrategy;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+
+import javax.imageio.ImageIO;
 
 import net.modernalworld.engine.GameBase;
 import net.modernalworld.engine.gui.Window;
 import net.modernalworld.engine.gui.WindowBuilder;
+import net.modernalworld.engine.gui.render.Animation;
+import net.modernalworld.engine.gui.render.GiverGraphics;
 
 public class Game extends GameBase {
 	private Window window;
-	private Graphics graphics;
 	private BufferStrategy bufferStrategy;
+	private GiverGraphics gp;
 
 	public Game() {
 		super("Testelandia", true, 60, 60);
@@ -30,31 +36,47 @@ public class Game extends GameBase {
 
 		this.window.createBufferStrategy(3);
 		this.bufferStrategy = this.window.getBufferStrategy();
-		this.graphics = this.bufferStrategy.getDrawGraphics();
+
+		this.gp = new GiverGraphics(this.bufferStrategy.getDrawGraphics());
 
 		this.window.showWindow();
 	}
 
 	@Override
 	public void update() {
-		
+
 	}
+
+	Animation anim = new Animation(1, load("image1.png"), load("image2.png"));
 
 	@Override
 	public void render() {
-		Graphics g = bufferStrategy.getDrawGraphics();
-		
+		gp = new GiverGraphics(bufferStrategy.getDrawGraphics());
+		Graphics g = gp.getGraph();
+
 		g.setColor(Color.black);
 		g.fillRect(0, 0, getFrameWidth(), getFrameHeight());
-		
+
+		gp.drawAnimation(anim, 0, 0, 64, 64);
+
 		g.dispose();
 		bufferStrategy.show();
 	}
-	
+
 	public int getFrameWidth() {
 		return window.getFrame().getWidth();
 	}
-	
+
+	public BufferedImage load(String path) {
+		try {
+			return ImageIO.read(getClass().getResource("/" + path));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		System.out.println("ImageNotFound");
+		return null;
+	}
+
 	public int getFrameHeight() {
 		return window.getFrame().getHeight();
 	}
