@@ -1,2 +1,6 @@
-# GiverEngine
-Não estou tentando elevar meu nome KAKKAKAKA, é pra caso alguém também upe uma Engine, não ter confusão de nome
+# ModernalEngine  
+  
+Projeto de Game Engine em Java de GiverPlay007 e gustavoAkira.  
+## Importante
+O pacote scheduler foi 100% baseado no scheduler da Bukkit API e CraftBukkit  
+Repositório do SpigotMC: https://hub.spigotmc.org/stash/projects/SPIGOT
